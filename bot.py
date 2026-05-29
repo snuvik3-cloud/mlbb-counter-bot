@@ -6,7 +6,7 @@ from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 # Замени токен на свой из @BotFather
 TOKEN = "8942200173:AAG7Z_JEC0zpO0IW64QZDoAzIxLQQ_FOrWo"
 # Ссылка на твой индекс-файл (пока тестируешь локально, можно использовать GitHub Pages или Ngrok)
-WEBAPP_URL = "https://твой-домен-или-ngrok.ngrok-free.app"
+WEBAPP_URL = "https://snuvik3-cloud.github.io/mlbb-counter-bot/"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()

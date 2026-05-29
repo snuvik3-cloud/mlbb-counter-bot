@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MLBB Counter Picker</title>
-    <!-- Подключаем стили Tailwind CSS -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- SDK Телеграм Апки -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body class="bg-slate-900 text-white font-sans p-4">
@@ -26,11 +24,13 @@
             <option value="Jungle">Лес (Jungle)</option>
             <option value="Roam">Роум (Roam)</option>
             <option value="Exp">Опыт (Exp)</option>
-            <option value="Mid">Мид (Mid)</option>
+            <option value="Gold">Золото (Gold)</option>
         </select>
 
-        <label class="block text-sm font-semibold">Враг на линии (ID: 1-Fanny, 2-Khufra, 3-Minsitthar...):</label>
-        <input type="number" id="enemy-input" value="1" class="w-full bg-slate-800 border border-slate-700 p-2 rounded-md">
+        <label class="block text-sm font-semibold">Враг на линии:</label>
+        <select id="enemy-select" class="w-full bg-slate-800 border border-slate-700 p-2 rounded-md text-white">
+            <!-- Сюда JS подгрузит список имен -->
+        </select>
         
         <button onclick="get1v1Counter()" class="w-full bg-green-600 hover:bg-green-700 p-3 rounded-md font-bold mt-2">Найти контрпик</button>
         <div id="result-1v1" class="mt-4 space-y-2"></div>
@@ -38,14 +38,16 @@
 
     <!-- ИНТЕРФЕЙС 5х5 -->
     <div id="mode-5v5" class="space-y-4 hidden">
-        <p class="text-sm text-slate-400">Вбейте ID персонажей через запятую:</p>
+        <p class="text-sm text-slate-400">Выберите пикнутых героев для анализа:</p>
         <div>
-            <label class="block text-xs font-semibold uppercase text-red-400">Пик Врага (например: 1, 3):</label>
-            <input type="text" id="enemy-team" value="1,3" class="w-full bg-slate-800 border border-slate-700 p-2 rounded-md">
+            <label class="block text-xs font-semibold uppercase text-red-400 mb-1">Герой врага №1:</label>
+            <select id="enemy-1" class="hero-pool-select w-full bg-slate-800 border border-slate-700 p-2 rounded-md mb-2"></select>
+            <label class="block text-xs font-semibold uppercase text-red-400 mb-1">Герой врага №2:</label>
+            <select id="enemy-2" class="hero-pool-select w-full bg-slate-800 border border-slate-700 p-2 rounded-md"></select>
         </div>
         <div>
-            <label class="block text-xs font-semibold uppercase text-blue-400">Наш Пик (например: 2):</label>
-            <input type="text" id="our-team" value="2" class="w-full bg-slate-800 border border-slate-700 p-2 rounded-md">
+            <label class="block text-xs font-semibold uppercase text-blue-400 mb-1">Наш пик №1:</label>
+            <select id="our-1" class="hero-pool-select w-full bg-slate-800 border border-slate-700 p-2 rounded-md"></select>
         </div>
 
         <button onclick="get5v5Counter()" class="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-md font-bold mt-2">Рассчитать идеальный драфт</button>
@@ -53,12 +55,39 @@
     </div>
 
     <script>
-        // Инициализируем Telegram WebApp
         const tg = window.Telegram.WebApp;
         tg.ready();
-        tg.expand(); // Раскрываем на весь экран
+        tg.expand();
 
-        const API_URL = "http://localhost:8000/api"; // При деплое заменишь на реальный домен
+        // Замени на URL своего бэкенда (или ngrok)
+        const API_URL = "http://localhost:8000/api"; 
+
+        // Загрузка списка героев при старте аппки
+        async function loadHeroes() {
+            try {
+                const response = await fetch(`${API_URL}/heroes`);
+                const heroes = await response.json();
+                
+                const selects = [
+                    document.getElementById('enemy-select'),
+                    document.getElementById('enemy-1'),
+                    document.getElementById('enemy-2'),
+                    document.getElementById('our-1')
+                ];
+                
+                selects.forEach(select => {
+                    select.innerHTML = "";
+                    heroes.forEach(name => {
+                        let opt = document.createElement('option');
+                        opt.value = name;
+                        opt.innerText = name;
+                        select.appendChild(opt);
+                    });
+                });
+            } catch (e) {
+                console.error("Ошибка подключения к API бэкенда", e);
+            }
+        }
 
         function switchMode(mode) {
             if (mode === '1v1') {
@@ -76,30 +105,30 @@
 
         async function get1v1Counter() {
             const lane = document.getElementById('lane-select').value;
-            const enemyId = document.getElementById('enemy-input').value;
+            const enemyName = document.getElementById('enemy-select').value;
             const resBox = document.getElementById('result-1v1');
-            resBox.innerHTML = "Загрузка...";
+            resBox.innerHTML = "Поиск решений...";
 
-            const response = await fetch(`${API_URL}/counter/lane?enemy_id=${enemyId}&lane=${lane}`);
+            const response = await fetch(`${API_URL}/counter/lane?enemy_name=${enemyName}&lane=${lane}`);
             const data = await response.json();
 
             resBox.innerHTML = "";
-            if(data.length === 0) { resBox.innerHTML = "Нет жестких контрпиков в базе под этот лайн."; return; }
+            if(data.length === 0) { resBox.innerHTML = "<p class='text-sm text-slate-400'>В этой категории явных контрпиков не найдено.</p>"; return; }
             
             data.forEach(item => {
                 resBox.innerHTML += `
                     <div class="bg-slate-800 p-3 rounded-md border-l-4 border-yellow-500">
-                        <div class="font-bold text-yellow-400">${item.hero_name} (Эффективность: ${item.weight}%)</div>
+                        <div class="font-bold text-yellow-400">${item.hero_name}</div>
                         <div class="text-sm text-slate-300 mt-1">${item.reason}</div>
                     </div>`;
             });
         }
 
         async function get5v5Counter() {
-            const enemyTeam = document.getElementById('enemy-team').value.split(',').map(Number);
-            const ourTeam = document.getElementById('our-team').value.split(',').map(Number);
+            const enemyTeam = [document.getElementById('enemy-1').value, document.getElementById('enemy-2').value];
+            const ourTeam = [document.getElementById('our-1').value];
             const resBox = document.getElementById('result-5v5');
-            resBox.innerHTML = "Алгоритм думает...";
+            resBox.innerHTML = "Алгоритм вычисляет синергию...";
 
             const response = await fetch(`${API_URL}/counter/draft`, {
                 method: 'POST',
@@ -109,17 +138,24 @@
             const data = await response.json();
 
             resBox.innerHTML = "";
+            if(data.length === 0) { resBox.innerHTML = "<p class='text-sm text-slate-400'>Нет подходящих вариантов драфта.</p>"; return; }
+            
             data.forEach(item => {
+                let reasonsHtml = item.reasons.map(r => `<div class='text-xs text-slate-300 mt-1'>• ${r}</div>`).join('');
                 resBox.innerHTML += `
                     <div class="bg-slate-800 p-3 rounded-md border-l-4 border-blue-500">
                         <div class="flex justify-between font-bold">
                             <span>${item.name} (${item.role})</span>
                             <span class="text-xs text-green-400">${item.status}</span>
                         </div>
-                        <div class="text-xs text-slate-400 mt-1">Линия: ${item.lane}</div>
+                        <div class="text-xs text-slate-400">Линия: ${item.lane}</div>
+                        ${reasonsHtml}
                     </div>`;
             });
         }
+
+        // Запуск подгрузки базы при открытии
+        loadHeroes();
     </script>
 </body>
 </html>
